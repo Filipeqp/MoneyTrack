@@ -6,60 +6,102 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlmodel import Field, Session, SQLModel, create_engine, select
 
 
-class Project(SQLModel, table=True):
+class Transaction(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    description: str
+    category: str
+    kind: str = "expense"
+    amount: float
+    date: str
+    notes: str = ""
+
+
+class Goal(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     name: str
-    client: str
-    status: str = "Em execucao"
-    progress: int = 0
-    budget: float = 0
-    due_date: str
+    target_amount: float
+    saved_amount: float = 0
+    deadline: str
+    priority: str = "media"
 
 
-class Task(SQLModel, table=True):
+class SuggestedCategory(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
-    title: str
-    area: str
-    due_date: str
-    done: bool = False
-    project_id: int = Field(foreign_key="project.id")
+    name: str
+    monthly_limit: float
+    description: str
 
 
-engine = create_engine("sqlite:///flowup.db")
+engine = create_engine("sqlite:///finup.db")
 
 
 def create_db_and_seed():
     SQLModel.metadata.create_all(engine)
     with Session(engine) as session:
-        existing_project = session.exec(select(Project)).first()
-        if existing_project:
+        existing_transaction = session.exec(select(Transaction)).first()
+        if existing_transaction:
             return
-
-        project = Project(
-            name="App de controle financeiro",
-            client="Equipe Alfa",
-            status="Em execucao",
-            progress=72,
-            budget=3450,
-            due_date="2026-06-18",
-        )
-        session.add(project)
-        session.commit()
-        session.refresh(project)
 
         session.add_all(
             [
-                Task(
-                    title="Integrar login com API",
-                    area="Backend",
-                    due_date="2026-06-08",
-                    project_id=project.id,
+                Transaction(
+                    description="Salario",
+                    category="Receita fixa",
+                    kind="income",
+                    amount=4200,
+                    date="2026-06-05",
                 ),
-                Task(
-                    title="Preparar demo para professor",
-                    area="Entrega",
-                    due_date="2026-06-14",
-                    project_id=project.id,
+                Transaction(
+                    description="Restaurantes e delivery",
+                    category="Alimentacao",
+                    kind="expense",
+                    amount=620,
+                    date="2026-06-08",
+                    notes="Categoria com gasto acima do ideal na semana.",
+                ),
+                Transaction(
+                    description="Compras do mercado",
+                    category="Casa",
+                    kind="expense",
+                    amount=480,
+                    date="2026-06-06",
+                ),
+            ]
+        )
+        session.add_all(
+            [
+                Goal(
+                    name="Viagem para praia",
+                    target_amount=2800,
+                    saved_amount=1280,
+                    deadline="2026-12-20",
+                    priority="alta",
+                ),
+                Goal(
+                    name="Reserva de emergencia",
+                    target_amount=6000,
+                    saved_amount=2100,
+                    deadline="2027-03-01",
+                    priority="alta",
+                ),
+            ]
+        )
+        session.add_all(
+            [
+                SuggestedCategory(
+                    name="Restaurantes",
+                    monthly_limit=450,
+                    description="Delivery, lanches, almoco fora e cafes.",
+                ),
+                SuggestedCategory(
+                    name="Transporte",
+                    monthly_limit=300,
+                    description="Combustivel, app, onibus, metro e estacionamento.",
+                ),
+                SuggestedCategory(
+                    name="Assinaturas",
+                    monthly_limit=120,
+                    description="Streaming, apps, cursos e servicos recorrentes.",
                 ),
             ]
         )
@@ -72,11 +114,11 @@ async def lifespan(app: FastAPI):
     yield
 
 
-app = FastAPI(title="FlowUp API", lifespan=lifespan)
+app = FastAPI(title="FinUp API", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],
+    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -88,31 +130,37 @@ def health():
     return {"status": "ok"}
 
 
-@app.get("/projects")
-def list_projects():
+@app.get("/transactions")
+def list_transactions():
     with Session(engine) as session:
-        return session.exec(select(Project)).all()
+        return session.exec(select(Transaction)).all()
 
 
-@app.post("/projects")
-def create_project(project: Project):
+@app.post("/transactions")
+def create_transaction(transaction: Transaction):
     with Session(engine) as session:
-        session.add(project)
+        session.add(transaction)
         session.commit()
-        session.refresh(project)
-        return project
+        session.refresh(transaction)
+        return transaction
 
 
-@app.get("/tasks")
-def list_tasks():
+@app.get("/goals")
+def list_goals():
     with Session(engine) as session:
-        return session.exec(select(Task)).all()
+        return session.exec(select(Goal)).all()
 
 
-@app.post("/tasks")
-def create_task(task: Task):
+@app.post("/goals")
+def create_goal(goal: Goal):
     with Session(engine) as session:
-        session.add(task)
+        session.add(goal)
         session.commit()
-        session.refresh(task)
-        return task
+        session.refresh(goal)
+        return goal
+
+
+@app.get("/suggested-categories")
+def list_suggested_categories():
+    with Session(engine) as session:
+        return session.exec(select(SuggestedCategory)).all()

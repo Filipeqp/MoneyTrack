@@ -259,6 +259,10 @@ button:hover {
   color: #151711;
 }
 
+.budget.income {
+  color: #2f6b0b;
+}
+
 .status {
   padding: 8px 10px;
   border-radius: 999px;
