@@ -76,6 +76,8 @@ npm run dev
 
 O Vite normalmente abre em `http://localhost:5173`.
 
+Dentro do app React, use a opcao `Dashboard` na sidebar para ver o painel financeiro integrado ao layout principal.
+
 ## Rodar o Backend
 
 Instale o Python pelo site oficial ou pela Microsoft Store, depois rode:
@@ -85,7 +87,7 @@ cd backend
 python -m venv .venv
 .venv\Scripts\activate
 pip install -r requirements.txt
-uvicorn main:app --reload
+python -m uvicorn main:app --reload
 ```
 
 API:
@@ -93,10 +95,49 @@ API:
 - `GET /health`
 - `GET /transactions`
 - `POST /transactions`
+- `DELETE /transactions/{id}`
 - `GET /goals`
 - `POST /goals`
+- `POST /metas/{id}/foto`
 - `GET /suggested-categories`
+- `PUT /suggested-categories/{id}`
+- `GET /indicadores`
+- `GET /indicadores/dolar`
+- `GET /indicadores/euro`
+- `GET /indicadores/selic`
+- `GET /indicadores/ipca`
+- `GET /indicadores/cdi`
 - Documentacao automatica: `http://localhost:8000/docs`
+
+Painel administrativo:
+
+- URL: `http://localhost:8000/admin`
+- Usuario inicial: `admin@finup.local`
+- Atalho de usuario: `admin`
+- Senha inicial: `admin123`
+
+Dashboard financeiro server-side:
+
+- URL: `http://localhost:8000/financeiro/dashboard`
+- Usa Bootstrap 5 e Chart.js via CDN.
+
+Endpoints internos dos graficos:
+
+- `GET /dashboard/resumo`
+- `GET /dashboard/gastos-por-categoria`
+- `GET /dashboard/receitas-despesas-mensais`
+- `GET /dashboard/evolucao-saldo`
+- `GET /dashboard/maiores-despesas`
+- `GET /dashboard/metas`
+- `GET /dashboard/score`
+- `GET /dashboard/insights`
+
+Os indicadores usam APIs publicas gratuitas:
+
+- Banco Central do Brasil PTAX para dolar e euro.
+- Banco Central do Brasil SGS para Selic, IPCA e CDI.
+
+Cada consulta salva o resultado na tabela SQLite `indicadores_financeiros`, evitando duplicar o mesmo indicador na mesma data de referencia. Se a API publica estiver fora do ar, o backend tenta retornar o ultimo valor salvo com `stale: true`.
 
 ## Ideias Para Evoluir
 

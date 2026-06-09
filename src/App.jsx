@@ -1,48 +1,526 @@
+import { useEffect, useMemo, useState } from 'react'
+import FinanceDashboard from './FinanceDashboard.jsx'
 import './App.css'
 
-const transactions = [
-  {
-    name: 'Salario',
-    category: 'Receita fixa',
-    progress: 100,
-    amount: '+ R$ 4.200',
-    date: '05 jun',
-    status: 'Recebido',
-  },
-  {
-    name: 'Restaurantes e delivery',
-    category: 'Alimentacao',
-    progress: 78,
-    amount: '- R$ 620',
-    date: 'mes atual',
-    status: 'Atenção',
-  },
-  {
-    name: 'Compras do mercado',
-    category: 'Casa',
-    progress: 52,
-    amount: '- R$ 480',
-    date: 'mes atual',
-    status: 'No limite',
-  },
+const money = new Intl.NumberFormat('pt-BR', {
+  style: 'currency',
+  currency: 'BRL',
+})
+
+const number = new Intl.NumberFormat('pt-BR', {
+  maximumFractionDigits: 2,
+  minimumFractionDigits: 2,
+})
+
+const indicatorLabels = {
+  dolar: 'Dolar atual',
+  euro: 'Euro atual',
+  selic: 'Selic',
+  ipca: 'IPCA',
+  cdi: 'CDI / juros',
+}
+
+const API_BASE_URL = 'http://127.0.0.1:8000'
+const INDICATOR_KEYS = ['dolar', 'euro', 'selic', 'ipca', 'cdi']
+
+const initialExpenses = [
+  { id: 1, name: 'Restaurantes e delivery', category: 'Alimentacao', amount: 620, date: '2026-06-08' },
+  { id: 2, name: 'Compras do mercado', category: 'Casa', amount: 480, date: '2026-06-06' },
+  { id: 3, name: 'Transporte por app', category: 'Transporte', amount: 210, date: '2026-06-04' },
+  { id: 4, name: 'Streaming e apps', category: 'Assinaturas', amount: 96, date: '2026-06-02' },
 ]
 
-const habits = [
-  ['Cadastrar gastos do dia', 'Hoje', 'Rotina'],
-  ['Separar dinheiro da meta', 'Amanha', 'Reserva'],
-  ['Revisar restaurantes da semana', 'Sexta', 'Analise'],
-  ['Planejar gasto da viagem', 'Domingo', 'Objetivo'],
+const defaultSuggestedExpenses = [
+  { id: 1, name: 'Mercado', category: 'Casa', amount: 80 },
+  { id: 2, name: 'Restaurante', category: 'Alimentacao', amount: 35 },
+  { id: 3, name: 'Uber / transporte', category: 'Transporte', amount: 20 },
+  { id: 4, name: 'Farmacia', category: 'Saude', amount: 60 },
+  { id: 5, name: 'Cinema / lazer', category: 'Lazer', amount: 70 },
+  { id: 6, name: 'Curso ou livro', category: 'Estudos', amount: 120 },
 ]
 
-const goals = [
-  { label: 'Viagem para praia', value: 'R$ 2.800' },
-  { label: 'Reserva de emergencia', value: 'R$ 6.000' },
-  { label: 'Notebook novo', value: 'R$ 4.500' },
+const initialGoals = [
+  { id: 1, name: 'Viagem para praia', target: 2800, saved: 1280, monthly: 350, photoUrl: '' },
+  { id: 2, name: 'Reserva de emergencia', target: 6000, saved: 2100, monthly: 500, photoUrl: '' },
+  { id: 3, name: 'Notebook novo', target: 4500, saved: 900, monthly: 300, photoUrl: '' },
 ]
+
+const screens = {
+  home: 'Inicio',
+  wallet: 'Carteira',
+  habits: 'Transacoes',
+  goals: 'Metas',
+  financeDashboard: 'Dashboard',
+  indicators: 'Indicadores',
+}
+
+function monthsToGoal(goal, extraExpense = 0) {
+  const remaining = Math.max(goal.target - goal.saved, 0)
+  const monthlyPower = Math.max(goal.monthly, 1)
+  const baseMonths = Math.ceil(remaining / monthlyPower)
+  const impactedMonths = Math.ceil((remaining + extraExpense) / monthlyPower)
+  return { baseMonths, delay: Math.max(impactedMonths - baseMonths, 0) }
+}
 
 function App() {
+  const [activeScreen, setActiveScreen] = useState('home')
+  const [salary, setSalary] = useState(4200)
+  const [salaryTransactionId, setSalaryTransactionId] = useState(null)
+  const [expenses, setExpenses] = useState(initialExpenses)
+  const [goals, setGoals] = useState(initialGoals)
+  const [suggestions, setSuggestions] = useState(() => {
+    const saved = localStorage.getItem('finup-suggestions')
+    return saved ? JSON.parse(saved) : defaultSuggestedExpenses
+  })
+  const [editingSuggestionId, setEditingSuggestionId] = useState(null)
+  const [editingGoalId, setEditingGoalId] = useState(null)
+  const [toast, setToast] = useState('')
+  const [refreshKey, setRefreshKey] = useState(0)
+  const [expenseForm, setExpenseForm] = useState({
+    name: '',
+    category: 'Alimentacao',
+    amount: '',
+    date: '2026-06-08',
+  })
+  const [suggestionForm, setSuggestionForm] = useState({
+    name: '',
+    category: 'Geral',
+    amount: '',
+  })
+  const [goalForm, setGoalForm] = useState({
+    name: '',
+    target: '',
+    saved: '',
+    monthly: '',
+  })
+  const [lastExpense, setLastExpense] = useState(null)
+  const [indicators, setIndicators] = useState({})
+  const [indicatorStatus, setIndicatorStatus] = useState('loading')
+
+  async function loadFinanceData() {
+    try {
+      const [transactionsResponse, goalsResponse, suggestionsResponse] = await Promise.all([
+        fetch(`${API_BASE_URL}/transactions`),
+        fetch(`${API_BASE_URL}/goals`),
+        fetch(`${API_BASE_URL}/suggested-categories`),
+      ])
+      if (!transactionsResponse.ok || !goalsResponse.ok || !suggestionsResponse.ok) return
+
+      const transactionData = await transactionsResponse.json()
+      const incomeTransactions = transactionData.filter((transaction) => transaction.kind === 'income')
+      const salaryTransaction = incomeTransactions.find((transaction) => transaction.category === 'Receita fixa') || incomeTransactions[0]
+      if (salaryTransaction) {
+        setSalary(salaryTransaction.amount)
+        setSalaryTransactionId(salaryTransaction.id)
+      }
+      setExpenses(transactionData
+        .filter((transaction) => transaction.kind === 'expense')
+        .map((transaction) => ({
+          id: transaction.id,
+          name: transaction.description,
+          category: transaction.category,
+          amount: transaction.amount,
+          date: transaction.date,
+        })))
+
+      const goalData = await goalsResponse.json()
+      setGoals(goalData.map((goal) => ({
+        id: goal.id,
+        name: goal.name,
+        target: goal.target_amount,
+        saved: goal.saved_amount,
+        monthly: Math.max(Math.ceil((goal.target_amount - goal.saved_amount) / 12), 1),
+        photoUrl: goal.foto_url ? `${API_BASE_URL}${goal.foto_url}` : '',
+        deadline: goal.deadline,
+      })))
+
+      const suggestionData = await suggestionsResponse.json()
+      setSuggestions(suggestionData.map((suggestion) => ({
+        id: suggestion.id,
+        name: suggestion.name,
+        category: suggestion.description || 'Geral',
+        amount: suggestion.monthly_limit,
+      })))
+    } catch {
+      showToast('Backend offline: usando dados temporarios na tela.')
+    }
+  }
+
+  useEffect(() => {
+    loadFinanceData()
+  }, [])
+
+  function bumpDashboard() {
+    setRefreshKey((current) => current + 1)
+  }
+
+  const totalExpenses = useMemo(
+    () => expenses.reduce((sum, expense) => sum + expense.amount, 0),
+    [expenses],
+  )
+  const balance = salary - totalExpenses
+  const savingPower = Math.max(balance, 0)
+  const savingRate = salary > 0 ? Math.round((savingPower / salary) * 100) : 0
+  const mainGoal = goals[0]
+  const mainGoalMath = mainGoal ? monthsToGoal(mainGoal, lastExpense?.amount ?? 0) : null
+  const indicatorList = INDICATOR_KEYS.map((key) => ({
+    key,
+    ...indicators[key],
+  }))
+
+  useEffect(() => {
+    localStorage.setItem('finup-suggestions', JSON.stringify(suggestions))
+  }, [suggestions])
+
+  function showToast(message) {
+    setToast(message)
+    window.setTimeout(() => setToast(''), 2800)
+  }
+
+  useEffect(() => {
+    let ignore = false
+
+    async function loadIndicators() {
+      setIndicatorStatus('loading')
+      try {
+        const responses = await Promise.all(
+          INDICATOR_KEYS.map(async (key) => {
+            const controller = new AbortController()
+            const timeoutId = setTimeout(() => controller.abort(), 4000)
+            const response = await fetch(`${API_BASE_URL}/indicadores/${key}`, {
+              signal: controller.signal,
+            })
+            clearTimeout(timeoutId)
+            if (!response.ok) {
+              throw new Error('Nao foi possivel buscar indicadores publicos.')
+            }
+            return [key, await response.json()]
+          }),
+        )
+        if (!ignore) {
+          setIndicators(Object.fromEntries(responses))
+          setIndicatorStatus('ready')
+        }
+      } catch {
+        if (!ignore) {
+          setIndicatorStatus('error')
+        }
+      }
+    }
+
+    loadIndicators()
+    return () => {
+      ignore = true
+    }
+  }, [])
+
+  function formatIndicator(indicator) {
+    if (!indicator?.valor) return 'Aguardando'
+    if (indicator.key === 'dolar' || indicator.key === 'euro') {
+      return money.format(indicator.valor)
+    }
+    return `${number.format(indicator.valor)}%`
+  }
+
+  async function saveSalary() {
+    const payload = {
+      data: '2026-06-05',
+      descricao: 'Salario',
+      categoria: 'Receita fixa',
+      tipo: 'receita',
+      valor: Number(salary),
+      origem_arquivo: '',
+      hash_unico: '',
+    }
+    try {
+      const response = await fetch(
+        salaryTransactionId
+          ? `${API_BASE_URL}/transactions/${salaryTransactionId}`
+          : `${API_BASE_URL}/transactions`,
+        {
+          method: salaryTransactionId ? 'PUT' : 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        },
+      )
+      if (response.ok) {
+        const saved = await response.json()
+        setSalaryTransactionId(saved.id)
+        bumpDashboard()
+        showToast('Salario atualizado no banco.')
+      }
+    } catch {
+      showToast('Nao foi possivel salvar o salario no SQLite.')
+    }
+  }
+
+  async function addExpense(event) {
+    event.preventDefault()
+    const amount = Number(expenseForm.amount)
+    if (!expenseForm.name.trim() || !amount) return
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/transactions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          data: expenseForm.date,
+          descricao: expenseForm.name,
+          categoria: expenseForm.category,
+          tipo: 'despesa',
+          valor: amount,
+          origem_arquivo: '',
+          hash_unico: '',
+        }),
+      })
+      if (!response.ok) throw new Error()
+      const saved = await response.json()
+      const newExpense = {
+        id: saved.id,
+        name: saved.descricao,
+        category: saved.categoria,
+        amount: saved.valor,
+        date: saved.data,
+      }
+      setExpenses((current) => [newExpense, ...current])
+      setLastExpense(newExpense)
+      setExpenseForm({ name: '', category: 'Alimentacao', amount: '', date: '2026-06-08' })
+      bumpDashboard()
+      showToast('Gasto salvo no SQLite.')
+      setActiveScreen('wallet')
+    } catch {
+      showToast('Nao foi possivel salvar o gasto no SQLite.')
+    }
+  }
+
+  async function deleteExpense(expenseId) {
+    if (!window.confirm('Tem certeza que deseja remover este gasto?')) return
+    setExpenses((current) => current.filter((expense) => expense.id !== expenseId))
+    try {
+      const response = await fetch(`${API_BASE_URL}/transactions/${expenseId}`, { method: 'DELETE' })
+      if (!response.ok) throw new Error()
+      bumpDashboard()
+    } catch {
+      showToast('Nao foi possivel excluir no SQLite.')
+      await loadFinanceData()
+      return
+    }
+    showToast('Gasto removido com sucesso.')
+  }
+
+  async function addSuggestedExpense(suggestion) {
+    const date = new Date().toISOString().slice(0, 10)
+    try {
+      const response = await fetch(`${API_BASE_URL}/transactions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          data: date,
+          descricao: suggestion.name,
+          categoria: suggestion.category,
+          tipo: 'despesa',
+          valor: Number(suggestion.amount),
+          origem_arquivo: '',
+          hash_unico: '',
+        }),
+      })
+      if (!response.ok) throw new Error()
+      const saved = await response.json()
+      const newExpense = {
+        id: saved.id,
+        name: saved.descricao,
+        category: saved.categoria,
+        amount: saved.valor,
+        date: saved.data,
+      }
+      setExpenses((current) => [newExpense, ...current])
+      setLastExpense(newExpense)
+      bumpDashboard()
+      showToast('Gasto adicionado com sucesso.')
+      setActiveScreen('wallet')
+    } catch {
+      showToast('Nao foi possivel salvar o gasto no SQLite.')
+    }
+  }
+
+  function updateSuggestion(id, field, value) {
+    setSuggestions((current) => current.map((suggestion) => (
+      suggestion.id === id
+        ? { ...suggestion, [field]: field === 'amount' ? Number(value) : value }
+        : suggestion
+    )))
+  }
+
+  async function saveSuggestion(suggestion) {
+    try {
+      const response = await fetch(`${API_BASE_URL}/suggested-categories/${suggestion.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: suggestion.id,
+          name: suggestion.name,
+          monthly_limit: Number(suggestion.amount),
+          description: suggestion.category,
+        }),
+      })
+      if (!response.ok) throw new Error()
+      setEditingSuggestionId(null)
+      showToast('Gasto comum salvo no SQLite.')
+    } catch {
+      showToast('Nao foi possivel salvar o gasto comum.')
+    }
+  }
+
+  async function deleteSuggestion(suggestionId) {
+    if (!window.confirm('Tem certeza que deseja excluir este gasto comum?')) return
+    try {
+      const response = await fetch(`${API_BASE_URL}/suggested-categories/${suggestionId}`, { method: 'DELETE' })
+      if (!response.ok) throw new Error()
+      setSuggestions((current) => current.filter((suggestion) => suggestion.id !== suggestionId))
+      showToast('Gasto comum excluido.')
+    } catch {
+      showToast('Nao foi possivel excluir o gasto comum.')
+    }
+  }
+
+  async function addSuggestion(event) {
+    event.preventDefault()
+    const amount = Number(suggestionForm.amount)
+    if (!suggestionForm.name.trim() || !amount) return
+    try {
+      const response = await fetch(`${API_BASE_URL}/suggested-categories`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: suggestionForm.name,
+          monthly_limit: amount,
+          description: suggestionForm.category,
+        }),
+      })
+      if (!response.ok) throw new Error()
+      const saved = await response.json()
+      setSuggestions((current) => [
+        ...current,
+        {
+          id: saved.id,
+          name: saved.name,
+          category: saved.description || 'Geral',
+          amount: saved.monthly_limit,
+        },
+      ])
+      setSuggestionForm({ name: '', category: 'Geral', amount: '' })
+      showToast('Gasto comum criado.')
+    } catch {
+      showToast('Nao foi possivel criar o gasto comum.')
+    }
+  }
+
+  async function addGoal(event) {
+    event.preventDefault()
+    const target = Number(goalForm.target)
+    const monthly = Number(goalForm.monthly)
+    if (!goalForm.name.trim() || !target || !monthly) return
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/goals`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          nome: goalForm.name,
+          valor_objetivo: target,
+          valor_atual: Number(goalForm.saved) || 0,
+          prazo: '2026-12-31',
+          foto_url: '',
+        }),
+      })
+      if (!response.ok) throw new Error()
+      await loadFinanceData()
+      setGoalForm({ name: '', target: '', saved: '', monthly: '' })
+      bumpDashboard()
+      showToast('Meta salva no SQLite.')
+      setActiveScreen('goals')
+    } catch {
+      showToast('Nao foi possivel salvar a meta.')
+    }
+  }
+
+  async function saveGoal(goal) {
+    try {
+      const response = await fetch(`${API_BASE_URL}/goals/${goal.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: goal.id,
+          nome: goal.name,
+          valor_objetivo: Number(goal.target),
+          valor_atual: Number(goal.saved),
+          prazo: goal.deadline || '2026-12-31',
+          foto_url: goal.photoUrl?.replace(API_BASE_URL, '') || '',
+        }),
+      })
+      if (!response.ok) throw new Error()
+      setEditingGoalId(null)
+      await loadFinanceData()
+      bumpDashboard()
+      showToast('Meta atualizada.')
+    } catch {
+      showToast('Nao foi possivel editar a meta.')
+    }
+  }
+
+  async function deleteGoal(goalId) {
+    if (!window.confirm('Tem certeza que deseja excluir esta meta?')) return
+    try {
+      const response = await fetch(`${API_BASE_URL}/goals/${goalId}`, { method: 'DELETE' })
+      if (!response.ok) throw new Error()
+      setGoals((current) => current.filter((goal) => goal.id !== goalId))
+      bumpDashboard()
+      showToast('Meta excluida.')
+    } catch {
+      showToast('Nao foi possivel excluir a meta.')
+    }
+  }
+
+  function updateGoalField(goalId, field, value) {
+    setGoals((current) => current.map((goal) => (
+      goal.id === goalId
+        ? { ...goal, [field]: field === 'target' || field === 'saved' || field === 'monthly' ? Number(value) : value }
+        : goal
+    )))
+  }
+
+  async function uploadGoalPhoto(goalId, file) {
+    if (!file) return
+    const localUrl = URL.createObjectURL(file)
+    setGoals((current) => current.map((goal) => (
+      goal.id === goalId ? { ...goal, photoUrl: localUrl } : goal
+    )))
+    const formData = new FormData()
+    formData.append('foto', file)
+    try {
+      const response = await fetch(`${API_BASE_URL}/metas/${goalId}/foto`, {
+        method: 'POST',
+        body: formData,
+      })
+      if (response.ok) {
+        const updatedGoal = await response.json()
+        setGoals((current) => current.map((goal) => (
+          goal.id === goalId
+            ? { ...goal, photoUrl: `${API_BASE_URL}${updatedGoal.foto_url}` }
+            : goal
+        )))
+        bumpDashboard()
+      }
+    } catch {
+      showToast('Foto salva apenas na tela atual porque o backend esta offline.')
+      return
+    }
+    showToast('Foto da meta atualizada.')
+  }
+
   return (
     <main className="app-shell">
+      {toast && <div className="toast-message">{toast}</div>}
       <aside className="sidebar">
         <div className="brand">
           <span className="brand-mark">F</span>
@@ -53,133 +531,360 @@ function App() {
         </div>
 
         <nav className="nav-list" aria-label="Principal">
-          <a className="active" href="#dashboard">Dashboard</a>
-          <a href="#wallet">Carteira</a>
-          <a href="#habits">Rotina</a>
-          <a href="#budget">Orcamento</a>
-          <a href="#goals">Metas</a>
+          {Object.entries(screens).map(([key, label]) => (
+            <button
+              className={activeScreen === key ? 'active' : ''}
+              key={key}
+              type="button"
+              onClick={() => setActiveScreen(key)}
+            >
+              {label}
+            </button>
+          ))}
         </nav>
 
         <div className="profile-box">
-          <span>Plano do trabalho</span>
-          <strong>React + FastAPI + SQLite</strong>
-          <small>Base pronta para evoluir com IA financeira depois.</small>
+          <span>Saldo disponivel</span>
+          <strong>{money.format(balance)}</strong>
+          <small>{savingRate}% da renda ainda pode virar meta este mes.</small>
         </div>
       </aside>
 
-      <section className="workspace" id="dashboard">
+      <section className="workspace">
         <header className="topbar">
           <div>
             <span className="eyebrow">Controle financeiro pessoal</span>
-            <h1>Entenda seu dinheiro e transforme planos em metas reais.</h1>
+            <h1>{screens[activeScreen]}</h1>
           </div>
-          <button type="button">Novo gasto</button>
+          <button type="button" onClick={() => setActiveScreen('wallet')}>+ Novo Gasto</button>
         </header>
 
-        <section className="hero-panel" aria-label="Resumo financeiro">
-          <div>
-            <p className="hero-kicker">Produto proposto</p>
-            <h2>Um app para controlar entradas, saidas, sonhos e habitos.</h2>
-            <p>
-              O FinUp registra quanto a pessoa ganha, onde ela gasta, quanto
-              consegue guardar e quais objetivos quer realizar, como viagem,
-              reserva de emergencia, curso, carro ou compra importante.
-            </p>
-          </div>
-          <div className="hero-metrics">
-            <div>
-              <span>Saldo do mes</span>
-              <strong>R$ 1.340</strong>
-            </div>
-            <div>
-              <span>Meta guardada</span>
-              <strong>64%</strong>
-            </div>
-            <div>
-              <span>Gastos variaveis</span>
-              <strong>R$ 1.870</strong>
-            </div>
-          </div>
-        </section>
-
-        <section className="content-grid">
-          <div className="panel wide" id="wallet">
-            <div className="panel-heading">
+        {activeScreen === 'home' && (
+          <>
+            <section className="hero-panel" aria-label="Resumo financeiro">
               <div>
-                <span className="eyebrow">Carteira</span>
-                <h3>Movimentacoes do mes</h3>
+                <p className="hero-kicker">Visao geral</p>
+                <h2>Seu dinheiro, suas metas e seus habitos no mesmo raciocinio.</h2>
+                <p>
+                  Informe o salario, registre gastos reais e acompanhe como cada
+                  escolha impacta objetivos como viagem, reserva e compras importantes.
+                </p>
               </div>
-              <button className="ghost" type="button">Filtrar</button>
-            </div>
-
-            <div className="project-list">
-              {transactions.map((transaction) => (
-                <article className="project-row" key={transaction.name}>
-                  <div>
-                    <strong>{transaction.name}</strong>
-                    <span>{transaction.category} - {transaction.date}</span>
-                  </div>
-                  <div className="progress-track" aria-label={`${transaction.progress}% do limite`}>
-                    <span style={{ width: `${transaction.progress}%` }} />
-                  </div>
-                  <span className={`budget ${transaction.amount.startsWith('+') ? 'income' : ''}`}>
-                    {transaction.amount}
-                  </span>
-                  <span className={`status ${transaction.status === 'Atenção' ? 'warning' : ''}`}>
-                    {transaction.status}
-                  </span>
-                </article>
-              ))}
-            </div>
-          </div>
-
-          <div className="panel" id="habits">
-            <span className="eyebrow">Rotina inteligente</span>
-            <h3>Acoes sugeridas</h3>
-            <div className="task-list">
-              {habits.map(([title, date, area]) => (
-                <label className="task-item" key={title}>
-                  <input type="checkbox" />
-                  <span>
-                    <strong>{title}</strong>
-                    <small>{area} - {date}</small>
-                  </span>
-                </label>
-              ))}
-            </div>
-          </div>
-
-          <div className="panel" id="budget">
-            <span className="eyebrow">Orcamento</span>
-            <h3>Meta de guardar</h3>
-            <div className="donut" aria-label="64% da meta mensal guardada">
-              <strong>64%</strong>
-              <span>guardado</span>
-            </div>
-            <p className="panel-note">
-              O sistema pode sugerir limites por categoria: restaurante,
-              transporte, mercado, lazer, assinaturas, estudos e compras.
-            </p>
-          </div>
-
-          <div className="panel wide" id="goals">
-            <div className="panel-heading">
-              <div>
-                <span className="eyebrow">Objetivos</span>
-                <h3>Metas financeiras</h3>
-              </div>
-              <button className="ghost" type="button">Criar meta</button>
-            </div>
-            <div className="risk-grid">
-              {goals.map((goal) => (
-                <div className="risk-card" key={goal.label}>
-                  <span>{goal.label}</span>
-                  <strong>{goal.value}</strong>
+              <div className="hero-metrics">
+                <div>
+                  <span>Salario mensal</span>
+                  <strong>{money.format(salary)}</strong>
                 </div>
-              ))}
+                <div>
+                  <span>Gastos do mes</span>
+                  <strong>{money.format(totalExpenses)}</strong>
+                </div>
+                <div>
+                  <span>Saldo livre</span>
+                  <strong>{money.format(balance)}</strong>
+                </div>
+              </div>
+            </section>
+
+            <section className="content-grid">
+              <div className="panel salary-card">
+                <span className="eyebrow">Renda</span>
+                <h3>Meu salario</h3>
+                <label className="field">
+                  <span>Quanto entra por mes?</span>
+                  <input
+                    min="0"
+                    type="number"
+                    value={salary}
+                    onChange={(event) => setSalary(Number(event.target.value))}
+                    onBlur={saveSalary}
+                  />
+                </label>
+                <p className="panel-note">Esse valor e salvo no SQLite como receita fixa e guia todos os calculos do app.</p>
+              </div>
+
+              <div className="panel">
+                <span className="eyebrow">Inteligencia</span>
+                <h3>Impacto recente</h3>
+                <p className="insight">
+                  {lastExpense && mainGoalMath
+                    ? `Voce adicionou ${money.format(lastExpense.amount)} em ${lastExpense.name}. Por causa disso, a meta "${mainGoal.name}" pode demorar mais ${mainGoalMath.delay} mes(es), mantendo o ritmo atual.`
+                    : 'Adicione um gasto para o FinUp calcular como isso muda o prazo das suas metas.'}
+                </p>
+              </div>
+
+              <div className="panel wide secondary-section">
+                <div className="panel-heading">
+                  <div>
+                    <span className="eyebrow">APIs publicas</span>
+                    <h3>Indicadores economicos</h3>
+                  </div>
+                  <span className={`status ${indicatorStatus === 'error' ? 'warning' : ''}`}>
+                    {indicatorStatus === 'loading' ? 'Atualizando' : indicatorStatus === 'error' ? 'Offline' : 'Atualizado'}
+                  </span>
+                </div>
+                <div className="indicator-grid">
+                  {indicatorList.map((indicator) => (
+                    <article className="indicator-card" key={indicator.key}>
+                      <span>{indicatorLabels[indicator.key]}</span>
+                      <strong>{formatIndicator(indicator)}</strong>
+                      <small>
+                        {indicator?.data_referencia
+                          ? `${indicator.fonte} - ${indicator.data_referencia}`
+                          : 'Inicie o backend para consultar o Banco Central.'}
+                      </small>
+                    </article>
+                  ))}
+                </div>
+              </div>
+
+              <div className="panel wide">
+                <span className="eyebrow">Insights publicos</span>
+                <h3>Leitura economica simples</h3>
+                <div className="insight-list">
+                  <p>A cotacao do dolar esta alta? Cuidado com compras internacionais e assinaturas em moeda estrangeira.</p>
+                  <p>Com a Selic atual, investimentos de renda fixa podem estar mais atrativos para reserva de emergencia.</p>
+                  <p>A inflacao medida pelo IPCA impacta seu poder de compra e pode exigir revisar metas e limites mensais.</p>
+                </div>
+              </div>
+            </section>
+          </>
+        )}
+
+        {activeScreen === 'wallet' && (
+          <section className="content-grid">
+            <div className="panel wide">
+              <div className="panel-heading">
+                <div>
+                  <span className="eyebrow">Carteira</span>
+                  <h3>Todos os gastos</h3>
+                </div>
+                <strong>{money.format(totalExpenses)}</strong>
+              </div>
+
+              <form className="form-grid" onSubmit={addExpense}>
+                <label className="field">
+                  <span>Descricao</span>
+                  <input
+                    value={expenseForm.name}
+                    onChange={(event) => setExpenseForm({ ...expenseForm, name: event.target.value })}
+                    placeholder="Ex: almoco, mercado, farmacia"
+                  />
+                </label>
+                <label className="field">
+                  <span>Categoria</span>
+                  <select
+                    value={expenseForm.category}
+                    onChange={(event) => setExpenseForm({ ...expenseForm, category: event.target.value })}
+                  >
+                    <option>Alimentacao</option>
+                    <option>Casa</option>
+                    <option>Transporte</option>
+                    <option>Lazer</option>
+                    <option>Saude</option>
+                    <option>Estudos</option>
+                    <option>Assinaturas</option>
+                  </select>
+                </label>
+                <label className="field">
+                  <span>Valor</span>
+                  <input
+                    min="0"
+                    type="number"
+                    value={expenseForm.amount}
+                    onChange={(event) => setExpenseForm({ ...expenseForm, amount: event.target.value })}
+                    placeholder="0"
+                  />
+                </label>
+                <button type="submit">Adicionar</button>
+              </form>
             </div>
-          </div>
-        </section>
+
+            <div className="panel wide">
+              <div className="project-list">
+                {expenses.map((expense) => (
+                  <article className="project-row" key={expense.id}>
+                    <div>
+                      <strong>{expense.name}</strong>
+                      <span>{expense.category} - {expense.date}</span>
+                    </div>
+                    <div className="progress-track" aria-label="peso no salario">
+                      <span style={{ width: `${Math.min((expense.amount / Math.max(salary, 1)) * 100, 100)}%` }} />
+                    </div>
+                    <span className="budget">- {money.format(expense.amount)}</span>
+                    <span className={`status ${expense.amount > salary * 0.1 ? 'warning' : ''}`}>
+                      {expense.amount > salary * 0.1 ? 'Revisar' : 'Ok'}
+                    </span>
+                    <button className="danger-button" type="button" onClick={() => deleteExpense(expense.id)}>Excluir</button>
+                  </article>
+                ))}
+              </div>
+            </div>
+          </section>
+        )}
+
+        {activeScreen === 'habits' && (
+          <section className="content-grid">
+            <div className="panel wide">
+              <span className="eyebrow">Sugestoes rapidas</span>
+              <h3>Gastos comuns do dia a dia</h3>
+              <form className="form-grid suggestion-create" onSubmit={addSuggestion}>
+                <label className="field">
+                  <span>Nome</span>
+                  <input
+                    value={suggestionForm.name}
+                    onChange={(event) => setSuggestionForm({ ...suggestionForm, name: event.target.value })}
+                    placeholder="Ex: Mercado"
+                  />
+                </label>
+                <label className="field">
+                  <span>Categoria</span>
+                  <input
+                    value={suggestionForm.category}
+                    onChange={(event) => setSuggestionForm({ ...suggestionForm, category: event.target.value })}
+                    placeholder="Ex: Casa"
+                  />
+                </label>
+                <label className="field">
+                  <span>Valor padrao</span>
+                  <input
+                    min="0"
+                    type="number"
+                    value={suggestionForm.amount}
+                    onChange={(event) => setSuggestionForm({ ...suggestionForm, amount: event.target.value })}
+                    placeholder="0"
+                  />
+                </label>
+                <button type="submit">Criar gasto comum</button>
+              </form>
+              {suggestions.length === 0 && (
+                <div className="empty-state">
+                  <strong>Nenhum gasto comum cadastrado.</strong>
+                  <span>Crie um gasto acima para voltar a adicionar despesas rapidas na carteira.</span>
+                </div>
+              )}
+              <div className="suggestion-grid">
+                {suggestions.map((suggestion) => (
+                  <article className="suggestion-card" key={suggestion.id}>
+                    <div className="floating-actions">
+                      <button className="icon-button" type="button" onClick={() => setEditingSuggestionId(editingSuggestionId === suggestion.id ? null : suggestion.id)}>Editar</button>
+                      <button className="icon-button danger-mini" type="button" onClick={() => deleteSuggestion(suggestion.id)}>Excluir</button>
+                    </div>
+                    <button className="suggestion-action" type="button" onClick={() => addSuggestedExpense(suggestion)}>
+                      <span>{suggestion.category}</span>
+                      <strong>{suggestion.name}</strong>
+                      <small>{money.format(suggestion.amount)}</small>
+                    </button>
+                    {editingSuggestionId === suggestion.id && (
+                      <div className="suggestion-editor">
+                        <input value={suggestion.name} onChange={(event) => updateSuggestion(suggestion.id, 'name', event.target.value)} />
+                        <input value={suggestion.category} onChange={(event) => updateSuggestion(suggestion.id, 'category', event.target.value)} />
+                        <input type="number" min="0" value={suggestion.amount} onChange={(event) => updateSuggestion(suggestion.id, 'amount', event.target.value)} />
+                        <button type="button" onClick={() => saveSuggestion(suggestion)}>Salvar</button>
+                      </div>
+                    )}
+                  </article>
+                ))}
+              </div>
+            </div>
+          </section>
+        )}
+
+        {activeScreen === 'indicators' && (
+          <section className="content-grid">
+            <div className="panel wide">
+              <span className="eyebrow">Banco Central</span>
+              <h3>Indicadores economicos</h3>
+              <div className="indicator-grid">
+                {indicatorList.map((indicator) => (
+                  <article className="indicator-card" key={indicator.key}>
+                    <span>{indicatorLabels[indicator.key]}</span>
+                    <strong>{formatIndicator(indicator)}</strong>
+                    <small>{indicator?.fonte || 'Sem dado salvo ainda'}</small>
+                  </article>
+                ))}
+              </div>
+            </div>
+          </section>
+        )}
+
+        {activeScreen === 'goals' && (
+          <section className="content-grid">
+            <div className="panel wide">
+              <div className="panel-heading">
+                <div>
+                  <span className="eyebrow">Objetivos</span>
+                  <h3>Metas financeiras</h3>
+                </div>
+                <strong>{goals.length} ativas</strong>
+              </div>
+              <form className="form-grid" onSubmit={addGoal}>
+                <label className="field">
+                  <span>Nome da meta</span>
+                  <input value={goalForm.name} onChange={(event) => setGoalForm({ ...goalForm, name: event.target.value })} placeholder="Ex: viagem" />
+                </label>
+                <label className="field">
+                  <span>Valor alvo</span>
+                  <input min="0" type="number" value={goalForm.target} onChange={(event) => setGoalForm({ ...goalForm, target: event.target.value })} />
+                </label>
+                <label className="field">
+                  <span>Ja guardado</span>
+                  <input min="0" type="number" value={goalForm.saved} onChange={(event) => setGoalForm({ ...goalForm, saved: event.target.value })} />
+                </label>
+                <label className="field">
+                  <span>Guardar por mes</span>
+                  <input min="0" type="number" value={goalForm.monthly} onChange={(event) => setGoalForm({ ...goalForm, monthly: event.target.value })} />
+                </label>
+                <button type="submit">Criar meta</button>
+              </form>
+            </div>
+
+            <div className="panel wide">
+              <div className="risk-grid">
+                {goals.map((goal) => {
+                  const percent = Math.min(Math.round((goal.saved / goal.target) * 100), 100)
+                  const { baseMonths, delay } = monthsToGoal(goal, lastExpense?.amount ?? 0)
+                  return (
+                    <div className="risk-card" key={goal.id}>
+                      {goal.photoUrl && <img className="goal-photo" src={goal.photoUrl} alt="" />}
+                      <div className="card-actions-row">
+                        <span>{goal.name}</span>
+                        <div className="table-actions">
+                          <button type="button" onClick={() => setEditingGoalId(editingGoalId === goal.id ? null : goal.id)}>Editar</button>
+                          <button className="danger-button" type="button" onClick={() => deleteGoal(goal.id)}>Excluir</button>
+                        </div>
+                      </div>
+                      {editingGoalId === goal.id ? (
+                        <div className="suggestion-editor">
+                          <input value={goal.name} onChange={(event) => updateGoalField(goal.id, 'name', event.target.value)} />
+                          <input type="number" min="0" value={goal.target} onChange={(event) => updateGoalField(goal.id, 'target', event.target.value)} />
+                          <input type="number" min="0" value={goal.saved} onChange={(event) => updateGoalField(goal.id, 'saved', event.target.value)} />
+                          <input value={goal.deadline || '2026-12-31'} onChange={(event) => updateGoalField(goal.id, 'deadline', event.target.value)} />
+                          <button type="button" onClick={() => saveGoal(goal)}>Salvar meta</button>
+                          <button className="ghost" type="button" onClick={() => setEditingGoalId(null)}>Cancelar</button>
+                        </div>
+                      ) : (
+                        <>
+                          <strong>{percent}%</strong>
+                          <small>
+                            Faltam {money.format(goal.target - goal.saved)}. No ritmo atual:
+                            {' '}{baseMonths} mes(es).{lastExpense ? ` Ultimo gasto adiciona ${delay} mes(es) de impacto.` : ''}
+                          </small>
+                        </>
+                      )}
+                      <label className="photo-upload">
+                        {goal.photoUrl ? 'Alterar foto' : 'Adicionar foto'}
+                        <input type="file" accept="image/png,image/jpeg,image/webp" onChange={(event) => uploadGoalPhoto(goal.id, event.target.files?.[0])} />
+                      </label>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          </section>
+        )}
+
+        {activeScreen === 'financeDashboard' && <FinanceDashboard refreshKey={refreshKey} />}
       </section>
     </main>
   )

@@ -1,0 +1,260 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>FinUp | Dashboard financeiro</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+    <style>
+      :root {
+        --fin-bg: #f7f8f5;
+        --fin-card: #ffffff;
+        --fin-text: #151711;
+        --fin-muted: #6f7668;
+        --fin-border: #e0e6d4;
+        --fin-accent: #bdf234;
+      }
+
+      body {
+        background: var(--fin-bg);
+        color: var(--fin-text);
+        font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      }
+
+      .shell {
+        max-width: 1440px;
+        margin: 0 auto;
+        padding: 32px;
+      }
+
+      .hero {
+        border-radius: 24px;
+        background: linear-gradient(135deg, rgba(217, 255, 89, 0.65), transparent 55%), #11130f;
+        color: #ffffff;
+        padding: 32px;
+      }
+
+      .card-fin {
+        border: 1px solid var(--fin-border);
+        border-radius: 18px;
+        background: var(--fin-card);
+        box-shadow: none;
+      }
+
+      .metric-label,
+      .eyebrow {
+        color: var(--fin-muted);
+        font-size: 0.78rem;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+
+      .metric-value {
+        font-size: 1.7rem;
+        font-weight: 850;
+      }
+
+      .chart-box {
+        height: 330px;
+      }
+
+      .progress {
+        height: 12px;
+        background: #edf0e7;
+      }
+
+      .progress-bar {
+        background: var(--fin-accent);
+      }
+
+      .insight-item {
+        border: 1px solid var(--fin-border);
+        border-radius: 14px;
+        background: #fbfcf7;
+        padding: 14px 16px;
+      }
+    </style>
+  </head>
+  <body>
+    <main class="shell">
+      <section class="hero mb-4">
+        <div class="d-flex flex-wrap justify-content-between gap-3 align-items-end">
+          <div>
+            <p class="eyebrow text-white-50 mb-2">FinUp Analytics</p>
+            <h1 class="display-5 fw-bold mb-2">Dashboard financeiro</h1>
+            <p class="text-white-50 mb-0">Analise receitas, despesas, metas, indicadores economicos e insights da carteira inteligente.</p>
+          </div>
+          <a class="btn btn-light fw-bold" href="/admin">Abrir admin</a>
+        </div>
+      </section>
+
+      <section class="row g-3 mb-4" id="summaryCards"></section>
+      <section class="row g-3 mb-4" id="indicatorCards"></section>
+
+      <section class="row g-3 mb-4">
+        <div class="col-lg-6">
+          <div class="card card-fin p-3">
+            <span class="eyebrow">Categorias</span>
+            <h2 class="h5 mt-1">Gastos por categoria</h2>
+            <div class="chart-box"><canvas id="categoryChart"></canvas></div>
+          </div>
+        </div>
+        <div class="col-lg-6">
+          <div class="card card-fin p-3">
+            <span class="eyebrow">Mensal</span>
+            <h2 class="h5 mt-1">Receitas x despesas</h2>
+            <div class="chart-box"><canvas id="monthlyChart"></canvas></div>
+          </div>
+        </div>
+        <div class="col-lg-6">
+          <div class="card card-fin p-3">
+            <span class="eyebrow">Saldo</span>
+            <h2 class="h5 mt-1">Evolucao do saldo</h2>
+            <div class="chart-box"><canvas id="balanceChart"></canvas></div>
+          </div>
+        </div>
+        <div class="col-lg-6">
+          <div class="card card-fin p-3">
+            <span class="eyebrow">Despesas</span>
+            <h2 class="h5 mt-1">Maiores categorias</h2>
+            <div class="chart-box"><canvas id="topExpensesChart"></canvas></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="row g-3">
+        <div class="col-lg-6">
+          <div class="card card-fin p-3">
+            <span class="eyebrow">Metas</span>
+            <h2 class="h5 mt-1">Progresso financeiro</h2>
+            <div id="goalsList" class="d-grid gap-3 mt-3"></div>
+          </div>
+        </div>
+        <div class="col-lg-6">
+          <div class="card card-fin p-3">
+            <span class="eyebrow">Carteira inteligente</span>
+            <h2 class="h5 mt-1">Insights</h2>
+            <div id="insightsList" class="d-grid gap-2 mt-3"></div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <script>
+      const money = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' })
+      const percent = new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 2, minimumFractionDigits: 2 })
+      const colors = ['#bdf234', '#11130f', '#7f8f68', '#d9ff59', '#98b91e', '#d5ddcb']
+
+      async function getJson(url) {
+        const response = await fetch(url)
+        if (!response.ok) throw new Error(`Erro ao carregar ${url}`)
+        return response.json()
+      }
+
+      function renderSummary(data) {
+        const cards = [
+          ['Saldo atual', money.format(data.saldo_atual)],
+          ['Receitas do mes', money.format(data.total_receitas_mes)],
+          ['Despesas do mes', money.format(data.total_despesas_mes)],
+          ['Economia do mes', money.format(data.economia_mes)],
+          ['Transacoes', data.quantidade_transacoes],
+          ['Score financeiro', `${data.score_financeiro}/100`],
+        ]
+        document.querySelector('#summaryCards').innerHTML = cards.map(([label, value]) => `
+          <div class="col-md-6 col-xl-2">
+            <article class="card card-fin p-3 h-100">
+              <span class="metric-label">${label}</span>
+              <strong class="metric-value mt-2">${value}</strong>
+            </article>
+          </div>
+        `).join('')
+
+        const labels = { dolar: 'Dolar atual', euro: 'Euro atual', selic: 'Selic', ipca: 'IPCA', cdi: 'CDI / juros' }
+        document.querySelector('#indicatorCards').innerHTML = Object.entries(labels).map(([key, label]) => {
+          const item = data.indicadores[key]
+          const value = item ? (key === 'dolar' || key === 'euro' ? money.format(item.valor) : `${percent.format(item.valor)}%`) : 'Sem dado'
+          const source = item ? `${item.fonte} - ${item.data_referencia}` : 'Consulte a rota do indicador para salvar no SQLite.'
+          return `
+            <div class="col-md-6 col-xl">
+              <article class="card card-fin p-3 h-100">
+                <span class="metric-label">${label}</span>
+                <strong class="metric-value mt-2">${value}</strong>
+                <small class="text-secondary mt-2">${source}</small>
+              </article>
+            </div>
+          `
+        }).join('')
+      }
+
+      function chart(id, type, data, options = {}) {
+        return new Chart(document.getElementById(id), {
+          type,
+          data,
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { position: 'bottom' } },
+            ...options,
+          },
+        })
+      }
+
+      async function boot() {
+        const [summary, categories, monthly, balance, topExpenses, goals, insights] = await Promise.all([
+          getJson('/dashboard/resumo'),
+          getJson('/dashboard/gastos-por-categoria'),
+          getJson('/dashboard/receitas-despesas-mensais'),
+          getJson('/dashboard/evolucao-saldo'),
+          getJson('/dashboard/maiores-despesas'),
+          getJson('/dashboard/metas'),
+          getJson('/dashboard/insights'),
+        ])
+
+        renderSummary(summary)
+
+        chart('categoryChart', 'doughnut', {
+          labels: categories.labels,
+          datasets: [{ data: categories.values, backgroundColor: colors }],
+        })
+        chart('monthlyChart', 'bar', {
+          labels: monthly.labels,
+          datasets: [
+            { label: 'Receitas', data: monthly.receitas, backgroundColor: '#bdf234' },
+            { label: 'Despesas', data: monthly.despesas, backgroundColor: '#11130f' },
+          ],
+        })
+        chart('balanceChart', 'line', {
+          labels: balance.labels,
+          datasets: [{ label: 'Saldo', data: balance.values, borderColor: '#11130f', backgroundColor: '#bdf234', tension: 0.35 }],
+        })
+        chart('topExpensesChart', 'bar', {
+          labels: topExpenses.labels,
+          datasets: [{ label: 'Valor', data: topExpenses.values, backgroundColor: '#bdf234' }],
+        }, { indexAxis: 'y' })
+
+        document.querySelector('#goalsList').innerHTML = goals.items.map((goal) => `
+          <div>
+            <div class="d-flex justify-content-between gap-3">
+              <strong>${goal.nome}</strong>
+              <span>${percent.format(goal.percentual)}%</span>
+            </div>
+            <div class="progress mt-2">
+              <div class="progress-bar" style="width: ${Math.min(goal.percentual, 100)}%"></div>
+            </div>
+            <small class="text-secondary">${money.format(goal.valor_atual)} de ${money.format(goal.valor_objetivo)} ate ${goal.prazo}</small>
+          </div>
+        `).join('')
+
+        document.querySelector('#insightsList').innerHTML = insights.items.map((item) => `
+          <div class="insight-item">${item}</div>
+        `).join('')
+      }
+
+      boot().catch((error) => {
+        document.body.insertAdjacentHTML('afterbegin', `<div class="alert alert-danger m-3">Erro ao carregar dashboard: ${error.message}</div>`)
+      })
+    </script>
+  </body>
+</html>

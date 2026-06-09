@@ -53,18 +53,21 @@
   gap: 8px;
 }
 
-.nav-list a {
+.nav-list button {
   padding: 12px 14px;
   border-radius: 10px;
+  border: 0;
+  background: transparent;
   color: #555d4d;
-  text-decoration: none;
+  text-align: left;
   font-weight: 700;
 }
 
-.nav-list a.active,
-.nav-list a:hover {
+.nav-list button.active,
+.nav-list button:hover {
   background: #eef9c8;
   color: #11130f;
+  transform: none;
 }
 
 .profile-box {
@@ -102,7 +105,7 @@
 .topbar h1 {
   max-width: 780px;
   margin: 8px 0 0;
-  font-size: clamp(2.2rem, 5vw, 5rem);
+  font-size: clamp(2.2rem, 4vw, 4.6rem);
   line-height: 0.95;
   letter-spacing: 0;
 }
@@ -166,9 +169,25 @@ button:hover {
 .hero-metrics div,
 .panel,
 .project-row,
-.risk-card {
+.risk-card,
+.suggestion-card,
+.metric-card,
+.indicator-card {
   border: 1px solid #e0e6d4;
   background: #ffffff;
+  transition: transform 0.22s ease, box-shadow 0.22s ease, border-color 0.22s ease;
+}
+
+.hero-metrics div:hover,
+.panel:hover,
+.project-row:hover,
+.risk-card:hover,
+.suggestion-card:hover,
+.metric-card:hover,
+.indicator-card:hover {
+  transform: translateY(-4px);
+  border-color: #d4dfc5;
+  box-shadow: 0 18px 34px rgba(17, 19, 15, 0.08);
 }
 
 .hero-metrics div {
@@ -197,9 +216,79 @@ button:hover {
   margin-top: 18px;
 }
 
+.insight {
+  margin-top: 18px;
+  color: #40483a;
+  font-size: 1.08rem;
+  line-height: 1.55;
+}
+
+.indicator-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.indicator-card {
+  display: grid;
+  gap: 10px;
+  min-height: 142px;
+  padding: 18px;
+  border: 1px solid #e0e6d4;
+  border-radius: 16px;
+  background: #fbfcf7;
+}
+
+.indicator-card span {
+  color: #647054;
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+.indicator-card strong {
+  font-size: 1.5rem;
+}
+
+.indicator-card small {
+  color: #6f7668;
+  line-height: 1.35;
+}
+
+.insight-list {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 18px;
+}
+
+.insight-list p {
+  margin: 0;
+  padding: 16px;
+  border: 1px solid #e0e6d4;
+  border-radius: 14px;
+  background: #fbfcf7;
+  color: #40483a;
+  line-height: 1.5;
+}
+
 .panel {
   padding: 24px;
   border-radius: 18px;
+}
+
+.salary-card {
+  border-color: #cfe6a0;
+  background:
+    linear-gradient(135deg, rgba(189, 242, 52, 0.24), transparent 60%),
+    #ffffff;
+}
+
+.salary-card h3 {
+  font-size: 1.8rem;
+}
+
+.secondary-section {
+  opacity: 0.96;
 }
 
 .wide {
@@ -228,11 +317,129 @@ button:hover {
 
 .project-row {
   display: grid;
-  grid-template-columns: minmax(230px, 1.2fr) minmax(160px, 0.8fr) auto auto;
+  grid-template-columns: minmax(230px, 1.2fr) minmax(160px, 0.8fr) auto auto auto;
   gap: 18px;
   align-items: center;
   padding: 16px;
   border-radius: 14px;
+}
+
+.toast-message {
+  position: fixed;
+  top: 22px;
+  right: 22px;
+  z-index: 20;
+  max-width: 320px;
+  padding: 14px 18px;
+  border: 1px solid #dce7bb;
+  border-radius: 14px;
+  background: #11130f;
+  color: #ffffff;
+  font-weight: 800;
+  box-shadow: 0 18px 40px rgba(17, 19, 15, 0.18);
+}
+
+.danger-button {
+  padding: 10px 12px;
+  border: 1px solid #ffd0d0;
+  background: #fff5f5;
+  color: #8a1717;
+  border-radius: 10px;
+}
+
+.metric-grid,
+.chart-grid {
+  display: grid;
+  gap: 14px;
+}
+
+.metric-grid {
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+}
+
+.metric-card {
+  display: grid;
+  gap: 12px;
+  padding: 18px;
+  border: 1px solid #e0e6d4;
+  border-radius: 16px;
+  background: #ffffff;
+}
+
+.metric-card span {
+  color: #647054;
+  font-size: 0.78rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.metric-card strong {
+  font-size: 1.4rem;
+}
+
+.chart-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-top: 18px;
+}
+
+.chart-frame {
+  height: 310px;
+  margin-top: 18px;
+}
+
+.dashboard-page {
+  display: grid;
+  gap: 18px;
+}
+
+.goal-progress-list {
+  display: grid;
+  gap: 16px;
+  margin-top: 18px;
+}
+
+.goal-progress > div:first-child {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 8px;
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr)) auto;
+  gap: 12px;
+  align-items: end;
+  margin-top: 18px;
+}
+
+.field {
+  display: grid;
+  gap: 8px;
+}
+
+.field span {
+  color: #647054;
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+.field input,
+.field select {
+  width: 100%;
+  min-height: 48px;
+  border: 1px solid #dfe5d4;
+  border-radius: 12px;
+  background: #fbfcf7;
+  color: #151711;
+  padding: 0 14px;
+  outline: none;
+}
+
+.field input:focus,
+.field select:focus {
+  border-color: #9fc827;
+  box-shadow: 0 0 0 4px rgba(189, 242, 52, 0.2);
 }
 
 .project-row strong,
@@ -340,7 +547,7 @@ button:hover {
 
 .risk-card {
   display: grid;
-  gap: 24px;
+  gap: 14px;
   padding: 18px;
   border-radius: 14px;
 }
@@ -355,6 +562,146 @@ button:hover {
   border-radius: 999px;
   background: #f0f4e8;
   text-transform: capitalize;
+}
+
+.risk-card small {
+  color: #6f7668;
+  line-height: 1.45;
+}
+
+.suggestion-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 18px;
+}
+
+.suggestion-create {
+  grid-template-columns: repeat(3, minmax(0, 1fr)) auto;
+  padding: 16px;
+  border: 1px solid #e0e6d4;
+  border-radius: 16px;
+  background: #fbfcf7;
+}
+
+.empty-state {
+  display: grid;
+  gap: 6px;
+  margin-top: 18px;
+  padding: 22px;
+  border: 1px dashed #cfd8c4;
+  border-radius: 16px;
+  background: #fbfcf7;
+  color: #4d5646;
+}
+
+.empty-state strong {
+  color: #151711;
+}
+
+.suggestion-card {
+  position: relative;
+  display: grid;
+  gap: 10px;
+  min-height: 140px;
+  border: 1px solid #e0e6d4;
+  border-radius: 16px;
+  background: #ffffff;
+  color: #151711;
+  text-align: left;
+  padding: 16px;
+}
+
+.suggestion-card span,
+.suggestion-card small {
+  color: #6f7668;
+}
+
+.suggestion-card strong {
+  font-size: 1.1rem;
+}
+
+.suggestion-action {
+  display: grid;
+  gap: 10px;
+  width: 100%;
+  padding: 0;
+  background: transparent;
+  color: #151711;
+  text-align: left;
+}
+
+.suggestion-action:hover,
+.icon-button:hover {
+  transform: none;
+}
+
+.icon-button {
+  min-height: 34px;
+  padding: 7px 10px;
+  border: 1px solid #e0e6d4;
+  border-radius: 10px;
+  background: #fbfcf7;
+  color: #151711;
+  font-size: 0.78rem;
+}
+
+.floating-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.danger-mini {
+  border-color: #ffd0d0;
+  background: #fff5f5;
+  color: #8a1717;
+}
+
+.suggestion-editor {
+  display: grid;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.suggestion-editor input {
+  min-height: 38px;
+  border: 1px solid #dfe5d4;
+  border-radius: 10px;
+  padding: 0 10px;
+}
+
+.goal-photo {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+  border-radius: 12px;
+}
+
+.photo-upload {
+  width: fit-content;
+  padding: 9px 12px;
+  border: 1px solid #dfe5d4;
+  border-radius: 10px;
+  background: #fbfcf7;
+  color: #151711;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.photo-upload input {
+  display: none;
+}
+
+.card-actions-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.insight-list.vertical {
+  grid-template-columns: 1fr;
 }
 
 @media (max-width: 980px) {
@@ -385,7 +732,13 @@ button:hover {
   .hero-panel,
   .content-grid,
   .project-row,
-  .risk-grid {
+  .risk-grid,
+  .form-grid,
+  .suggestion-grid,
+  .indicator-grid,
+  .insight-list,
+  .metric-grid,
+  .chart-grid {
     grid-template-columns: 1fr;
   }
 
