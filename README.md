@@ -1,4 +1,4 @@
-# FinUp - Controle Financeiro Pessoal
+# MoneyTrack - Controle Financeiro Pessoal
 
 Aplicação para controlar suas finanças pessoais, acompanhar gastos, criar metas e entender para onde seu dinheiro está indo.
 

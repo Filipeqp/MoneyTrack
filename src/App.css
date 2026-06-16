@@ -35,6 +35,12 @@
   font-weight: 800;
 }
 
+.brand-logo {
+  width: 48px;
+  height: 48px;
+  display: block;
+}
+
 .brand strong,
 .brand small {
   display: block;
@@ -317,8 +323,8 @@ button:hover {
 
 .project-row {
   display: grid;
-  grid-template-columns: minmax(230px, 1.2fr) minmax(160px, 0.8fr) auto auto auto;
-  gap: 18px;
+  grid-template-columns: 1fr 120px auto auto auto;
+  gap: 10px;
   align-items: center;
   padding: 16px;
   border-radius: 14px;
@@ -345,6 +351,59 @@ button:hover {
   background: #fff5f5;
   color: #8a1717;
   border-radius: 10px;
+}
+
+.danger-button-small {
+  padding: 8px 12px;
+  border: 1px solid #ffd0d0;
+  background: #fff5f5;
+  color: #8a1717;
+  border-radius: 8px;
+  font-size: 0.9rem;
+}
+
+.expense-actions button {
+  padding: 8px 12px;
+  font-size: 0.9rem;
+  font-weight: 700;
+  min-width: 68px;
+  text-align: center;
+}
+
+.expense-info {
+  display: grid;
+  gap: 6px;
+}
+
+.expense-name {
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: #151711;
+}
+
+.expense-meta {
+  font-size: 0.9rem;
+  color: #6f7668;
+}
+
+.expense-actions {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.add-category {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 12px;
+  align-items: end;
+}
+
+.add-category button {
+  padding: 10px 14px;
+  font-size: 0.95rem;
+  min-width: auto;
 }
 
 .metric-grid,

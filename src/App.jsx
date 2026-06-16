@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import FinanceDashboard from './FinanceDashboard.jsx'
+import logo from './assets/logo.svg'
 import './App.css'
 
 const money = new Intl.NumberFormat('pt-BR', {
@@ -71,12 +72,12 @@ function App() {
   const [expenses, setExpenses] = useState(initialExpenses)
   const [goals, setGoals] = useState(initialGoals)
   const [suggestions, setSuggestions] = useState(() => {
-    const saved = localStorage.getItem('finup-suggestions')
+    const saved = localStorage.getItem('moneytrack-suggestions')
     return saved ? JSON.parse(saved) : defaultSuggestedExpenses
   })
   const [categories, setCategories] = useState(() => {
     try {
-      const saved = localStorage.getItem('finup-categories')
+      const saved = localStorage.getItem('moneytrack-categories')
       return saved ? JSON.parse(saved) : defaultCategories
     } catch {
       return defaultCategories
@@ -181,12 +182,12 @@ function App() {
   }))
 
   useEffect(() => {
-    localStorage.setItem('finup-suggestions', JSON.stringify(suggestions))
+    localStorage.setItem('moneytrack-suggestions', JSON.stringify(suggestions))
   }, [suggestions])
 
   useEffect(() => {
     try {
-      localStorage.setItem('finup-categories', JSON.stringify(categories))
+      localStorage.setItem('moneytrack-categories', JSON.stringify(categories))
     } catch {}
   }, [categories])
 
@@ -601,10 +602,10 @@ function App() {
       {toast && <div className="toast-message">{toast}</div>}
       <aside className="sidebar">
         <div className="brand">
-          <span className="brand-mark">F</span>
+          <img src={logo} alt="MoneyTrack" className="brand-logo" />
           <div>
-            <strong>FinUp</strong>
-            <small>personal money</small>
+            <strong>MoneyTrack</strong>
+            <small>seu dinheiro sob controle</small>
           </div>
         </div>
 
@@ -687,7 +688,7 @@ function App() {
                 <p className="insight">
                   {lastExpense && mainGoalMath
                     ? `Voce adicionou ${money.format(lastExpense.amount)} em ${lastExpense.name}. Por causa disso, a meta "${mainGoal.name}" pode demorar mais ${mainGoalMath.delay} mes(es), mantendo o ritmo atual.`
-                    : 'Adicione um gasto para o FinUp calcular como isso muda o prazo das suas metas.'}
+                    : 'Adicione um gasto para o MoneyTrack calcular como isso muda o prazo das suas metas.'}
                 </p>
               </div>
 
@@ -749,7 +750,7 @@ function App() {
               <div className="project-list">
                 {expenses.map((expense) => (
                   <article className="project-row" key={expense.id}>
-                    <div>
+                    <div className="expense-info">
                       {editingExpenseId === expense.id ? (
                         <div className="expense-editor">
                           <input value={editingExpenseForm.name} onChange={(e) => setEditingExpenseForm({ ...editingExpenseForm, name: e.target.value })} />
@@ -760,8 +761,8 @@ function App() {
                         </div>
                       ) : (
                         <>
-                          <strong>{expense.name}</strong>
-                          <span>{expense.category} - {expense.date}</span>
+                          <strong className="expense-name">{expense.name}</strong>
+                          <span className="expense-meta">{expense.category} - {expense.date}</span>
                         </>
                       )}
                     </div>
@@ -772,17 +773,19 @@ function App() {
                     <span className={`status ${expense.amount > salary * 0.1 ? 'warning' : ''}`}>
                       {expense.amount > salary * 0.1 ? 'Revisar' : 'Ok'}
                     </span>
-                    {editingExpenseId === expense.id ? (
-                      <>
-                        <button type="button" onClick={() => updateExpense(expense.id)}>Salvar</button>
-                        <button className="ghost" type="button" onClick={cancelEditExpense}>Cancelar</button>
-                      </>
-                    ) : (
-                      <>
-                        <button type="button" onClick={() => startEditExpense(expense)}>Editar</button>
-                        <button className="danger-button" type="button" onClick={() => deleteExpense(expense.id)}>Excluir</button>
-                      </>
-                    )}
+                    <div className="expense-actions">
+                      {editingExpenseId === expense.id ? (
+                        <>
+                          <button type="button" onClick={() => updateExpense(expense.id)}>Salvar</button>
+                          <button className="ghost" type="button" onClick={cancelEditExpense}>Cancelar</button>
+                        </>
+                      ) : (
+                        <>
+                          <button type="button" onClick={() => startEditExpense(expense)}>Editar</button>
+                          <button className="danger-button-small" type="button" onClick={() => deleteExpense(expense.id)}>Excluir</button>
+                        </>
+                      )}
+                    </div>
                   </article>
                 ))}
               </div>

@@ -81,10 +81,10 @@ class IndicadorFinanceiro(SQLModel, table=True):
     created_at: str = Field(default_factory=lambda: datetime.utcnow().isoformat())
 
 
-engine = create_engine("sqlite:///finup.db")
+engine = create_engine("sqlite:///moneytrack.db")
 templates = Jinja2Templates(directory="templates")
 UPLOAD_DIR = Path("uploads/metas")
-ADMIN_EMAIL = "admin@finup.local"
+ADMIN_EMAIL = "admin@moneytrack.local"
 ADMIN_PASSWORD = "admin123"
 
 INDICATOR_FETCHERS = {
@@ -370,7 +370,7 @@ async def lifespan(app: FastAPI):
     yield
 
 
-app = FastAPI(title="FinUp API", lifespan=lifespan)
+app = FastAPI(title="MoneyTrack API", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -385,8 +385,8 @@ app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 admin = Admin(
     app,
     engine,
-    authentication_backend=AdminAuth(secret_key="finup-admin-dev-secret"),
-    title="FinUp Admin",
+    authentication_backend=AdminAuth(secret_key="moneytrack-admin-dev-secret"),
+    title="MoneyTrack Admin",
 )
 admin.add_view(TransactionAdmin)
 admin.add_view(TransacaoAdmin)
