@@ -1,86 +1,23 @@
 # FinUp - Controle Financeiro Pessoal
 
-FinUp e uma aplicacao de controle financeiro pessoal para ajudar uma pessoa a entender quanto ganha, quanto gasta, onde o dinheiro esta indo e como transformar objetivos em metas reais.
+Aplicação para controlar suas finanças pessoais, acompanhar gastos, criar metas e entender para onde seu dinheiro está indo.
 
-## Ideia do Produto
+## ⚡ Quick Start - Rodar o programa
 
-O sistema permite cadastrar receitas, gastos, categorias, metas e objetivos financeiros. A pessoa pode acompanhar o saldo do mes, registrar gastos do dia a dia, definir limites por categoria e criar planos para guardar dinheiro.
+### Pré-requisitos
 
-Exemplos de objetivos:
+- **Node.js** (v18+): [https://nodejs.org/](https://nodejs.org/)
+- **Python** (v3.9+): [https://www.python.org/](https://www.python.org/)
 
-- Fazer uma viagem.
-- Montar uma reserva de emergencia.
-- Comprar um notebook, celular, moto ou carro.
-- Guardar dinheiro para curso, faculdade ou certificacao.
-- Reduzir gastos com restaurante, delivery, compras e assinaturas.
-
-## Diferencial
-
-A aplicacao nao precisa ser apenas uma lista de gastos. Ela pode sugerir categorias, recomendar limites mensais e mostrar acoes praticas, como:
-
-- "Seu gasto com restaurante esta alto esta semana."
-- "Se guardar R$ 350 por mes, sua viagem fica pronta em 8 meses."
-- "Voce pode reduzir assinaturas para acelerar sua reserva."
-- "Sua meta principal deveria ser reserva de emergencia antes de compras grandes."
-
-Mais para frente, o projeto pode integrar IA para entender o perfil da pessoa e montar recomendacoes personalizadas.
-
-## Onde Pode Ser Usado
-
-- Controle financeiro pessoal.
-- Organizacao de salario, renda extra e gastos mensais.
-- Planejamento de viagem e compras.
-- Educacao financeira para jovens.
-- Portfolio pessoal, mostrando frontend, backend, banco de dados e possibilidade de IA.
-
-## Funcionalidades Planejadas
-
-- Cadastro de receitas: salario, freelas, mesada, renda extra.
-- Cadastro de despesas: restaurante, mercado, transporte, lazer, compras, contas e assinaturas.
-- Categorias sugeridas para facilitar o uso.
-- Limite mensal por categoria.
-- Metas de guardar dinheiro.
-- Objetivos com prazo e valor alvo.
-- Dashboard com saldo, entradas, saidas e percentual da meta.
-- Historico mensal.
-- Alertas de gasto alto.
-- Futuramente: recomendacoes com IA.
-
-## Stack Recomendada
-
-- Frontend: React + Vite.
-- Backend: Python + FastAPI.
-- Banco de dados: SQLite no inicio, PostgreSQL quando crescer.
-- API: REST, com endpoints para transacoes, metas e categorias.
-
-Python e uma boa escolha para este trabalho porque FastAPI e simples, moderno, rapido de aprender e gera documentacao automatica em `/docs`. C# tambem seria uma boa opcao com ASP.NET Core, mas Python tende a ser mais direto para comecar.
-
-## Estrutura
-
-```text
-.
-|-- src/                 # Frontend React
-|-- backend/             # API FastAPI
-|   |-- main.py
-|   `-- requirements.txt
-|-- package.json
-`-- README.md
-```
-
-## Rodar o Frontend
+### 1. Clone ou baixe o projeto
 
 ```bash
-npm install
-npm run dev
+cd "caminho/para/MoneyTrack"
 ```
 
-O Vite normalmente abre em `http://localhost:5173`.
+### 2. Inicie o Backend (Python)
 
-Dentro do app React, use a opcao `Dashboard` na sidebar para ver o painel financeiro integrado ao layout principal.
-
-## Rodar o Backend
-
-Instale o Python pelo site oficial ou pela Microsoft Store, depois rode:
+Abra um terminal na pasta `backend`:
 
 ```bash
 cd backend
@@ -90,61 +27,154 @@ pip install -r requirements.txt
 python -m uvicorn main:app --reload
 ```
 
-API:
+✅ Backend rodando em: `http://127.0.0.1:8000`
 
-- `GET /health`
-- `GET /transactions`
-- `POST /transactions`
-- `DELETE /transactions/{id}`
-- `GET /goals`
-- `POST /goals`
-- `POST /metas/{id}/foto`
-- `GET /suggested-categories`
-- `PUT /suggested-categories/{id}`
-- `GET /indicadores`
-- `GET /indicadores/dolar`
-- `GET /indicadores/euro`
-- `GET /indicadores/selic`
-- `GET /indicadores/ipca`
-- `GET /indicadores/cdi`
-- Documentacao automatica: `http://localhost:8000/docs`
+### 3. Inicie o Frontend (React)
 
-Painel administrativo:
+Abra outro terminal na raiz do projeto:
 
-- URL: `http://localhost:8000/admin`
-- Usuario inicial: `admin@finup.local`
-- Atalho de usuario: `admin`
-- Senha inicial: `admin123`
+```bash
+npm install
+npm run dev
+```
 
-Dashboard financeiro server-side:
+✅ Frontend rodando em: `http://localhost:5173` (ou `http://localhost:5174` se a porta estiver ocupada)
 
-- URL: `http://localhost:8000/financeiro/dashboard`
-- Usa Bootstrap 5 e Chart.js via CDN.
+### 4. Pronto! Acesse a aplicação
 
-Endpoints internos dos graficos:
+Abra o navegador em: **`http://localhost:5173`** (ou `5174`)
 
-- `GET /dashboard/resumo`
-- `GET /dashboard/gastos-por-categoria`
-- `GET /dashboard/receitas-despesas-mensais`
-- `GET /dashboard/evolucao-saldo`
-- `GET /dashboard/maiores-despesas`
-- `GET /dashboard/metas`
-- `GET /dashboard/score`
-- `GET /dashboard/insights`
+---
 
-Os indicadores usam APIs publicas gratuitas:
+## 📱 O que você pode fazer
 
-- Banco Central do Brasil PTAX para dolar e euro.
-- Banco Central do Brasil SGS para Selic, IPCA e CDI.
+- **Adicionar gastos**: Registre tudo que você gasta no mês (alimentação, transporte, lazer, etc.)
+- **Criar metas**: Defina objetivos (viagem, reserva de emergência, compra de notebook, etc.)
+- **Ver resumo financeiro**: Dashboard mostrando saldo, receitas, despesas e progresso das metas
+- **Gerenciar categorias**: Customize as categorias de gastos
+- **Acompanhar indicadores**: Consulte cotações de dólar, euro, Selic, IPCA e CDI direto do Banco Central
 
-Cada consulta salva o resultado na tabela SQLite `indicadores_financeiros`, evitando duplicar o mesmo indicador na mesma data de referencia. Se a API publica estiver fora do ar, o backend tenta retornar o ultimo valor salvo com `stale: true`.
+---
 
-## Ideias Para Evoluir
+## 📚 Funcionalidades
 
-- Conectar o React ao backend usando `fetch`.
-- Criar formulario para adicionar gasto ou receita.
-- Criar tela de metas com prazo e valor mensal recomendado.
-- Criar graficos por categoria.
-- Criar login para cada usuario ter seus proprios dados.
-- Integrar IA para analisar perfil financeiro e sugerir planos.
-- Gerar relatorio mensal em PDF.
+### Abas principais
+
+- **Início**: Resumo rápido do seu dinheiro
+- **Meu Histórico**: Lista de todos os gastos registrados (editar ou deletar)
+- **Gastos Fixos**: Gastos comuns do dia a dia para adicionar rapidamente
+- **Metas**: Criar e acompanhar metas financeiras com fotos
+- **Dashboard**: Gráficos e análise de gastos por categoria
+- **Indicadores**: Cotações econômicas (dólar, euro, Selic, IPCA, CDI)
+
+### Dados
+
+Todos os dados são salvos em um banco de dados SQLite local. Nenhuma informação é enviada para servidores externos (exceto consulta de cotações ao Banco Central).
+
+---
+
+## 🛠️ Tecnologias
+
+- **Frontend**: React 19 + Vite + Chart.js
+- **Backend**: Python + FastAPI + SQLModel
+- **Banco de dados**: SQLite
+- **APIs externas**: Banco Central do Brasil (cotações)
+
+---
+
+## 📖 Documentação da API
+
+Quando o backend está rodando, acesse a documentação interativa em:
+
+**`http://127.0.0.1:8000/docs`**
+
+Lá você pode testar todos os endpoints (transações, metas, categorias, indicadores, etc.)
+
+---
+
+## 👨‍💻 Desenvolvimento
+
+## 📊 Endpoints da API
+
+Lista completa de endpoints disponíveis:
+
+| Método | Endpoint | Descrição |
+|--------|----------|-----------|
+| GET | `/health` | Status do backend |
+| GET | `/transactions` | Listar gastos |
+| POST | `/transactions` | Criar gasto |
+| PUT | `/transactions/{id}` | Editar gasto |
+| DELETE | `/transactions/{id}` | Deletar gasto |
+| GET | `/goals` | Listar metas |
+| POST | `/goals` | Criar meta |
+| PUT | `/goals/{id}` | Editar meta |
+| DELETE | `/goals/{id}` | Deletar meta |
+| POST | `/metas/{id}/foto` | Upload de foto para meta |
+| GET | `/suggested-categories` | Listar categorias sugeridas |
+| POST | `/suggested-categories` | Criar categoria |
+| GET | `/indicadores` | Listar indicadores salvos |
+| GET | `/indicadores/dolar` | Cotação do dólar atual |
+| GET | `/indicadores/euro` | Cotação do euro atual |
+| GET | `/indicadores/selic` | Taxa Selic atual |
+| GET | `/indicadores/ipca` | Inflação (IPCA) atual |
+| GET | `/indicadores/cdi` | Taxa CDI atual |
+| GET | `/dashboard/resumo` | Resumo financeiro |
+| GET | `/dashboard/gastos-por-categoria` | Gastos agrupados por categoria |
+| GET | `/dashboard/receitas-despesas-mensais` | Comparativo mensal |
+| GET | `/dashboard/evolucao-saldo` | Evolução do saldo |
+| GET | `/dashboard/maiores-despesas` | Top 5 maiores gastos |
+| GET | `/dashboard/metas` | Progresso das metas |
+| GET | `/dashboard/score` | Score financeiro |
+
+---
+
+## 🚀 Desenvolvendo
+
+### Estrutura do projeto
+
+```
+MoneyTrack/
+├── src/                      # Frontend React
+│   ├── App.jsx
+│   ├── FinanceDashboard.jsx
+│   ├── App.css
+│   └── assets/
+├── backend/                  # API Python/FastAPI
+│   ├── main.py
+│   ├── requirements.txt
+│   └── services/
+│       └── public_finance_api.py
+├── public/                   # Arquivos estáticos
+├── package.json              # Dependências do frontend
+├── vite.config.js            # Configuração do Vite
+└── eslint.config.js          # Linter do JS
+```
+
+### Variáveis de ambiente
+
+Não são necessárias para o desenvolvimento local. O banco de dados SQLite é criado automaticamente.
+
+### Como contribuir
+
+1. Clone o repositório
+2. Crie uma branch para sua feature: `git checkout -b minha-feature`
+3. Faça suas alterações
+4. Teste localmente rodando frontend e backend
+5. Commit e push: `git push origin minha-feature`
+6. Abra um Pull Request
+
+---
+
+## 📝 Licença
+
+Este projeto é de código aberto e pode ser usado livremente.
+
+---
+
+## 💡 Ideias futuras
+
+- Autenticação de usuários (login/senha ou Google)
+- Gráficos mais avançados e exportação de relatórios
+- Integração com contas bancárias
+- Recomendações com IA
+- App mobile (React Native)
