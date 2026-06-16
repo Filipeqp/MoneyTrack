@@ -46,6 +46,14 @@ Abra o navegador em: **`http://localhost:5173`** (ou `5174`)
 
 ---
 
+## 🎯 Prévia da Aplicação
+
+![MoneyTrack - Tela Inicial](./docs/images/tela-inicial.png)
+
+*Tela inicial do MoneyTrack com resumo financeiro, métricas de saldo e entrada de dados*
+
+---
+
 ## 📱 O que você pode fazer
 
 - **Adicionar gastos**: Registre tudo que você gasta no mês (alimentação, transporte, lazer, etc.)
