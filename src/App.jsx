@@ -47,12 +47,14 @@ const initialGoals = [
 
 const screens = {
   home: 'Inicio',
-  wallet: 'Carteira',
-  habits: 'Transacoes',
+  wallet: 'Meu Histórico',
+  habits: 'Gastos Fixos',
   goals: 'Metas',
   financeDashboard: 'Dashboard',
   indicators: 'Indicadores',
 }
+
+const defaultCategories = ['Alimentacao', 'Casa', 'Transporte', 'Lazer', 'Saude', 'Estudos', 'Assinaturas']
 
 function monthsToGoal(goal, extraExpense = 0) {
   const remaining = Math.max(goal.target - goal.saved, 0)
@@ -72,6 +74,16 @@ function App() {
     const saved = localStorage.getItem('finup-suggestions')
     return saved ? JSON.parse(saved) : defaultSuggestedExpenses
   })
+  const [categories, setCategories] = useState(() => {
+    try {
+      const saved = localStorage.getItem('finup-categories')
+      return saved ? JSON.parse(saved) : defaultCategories
+    } catch {
+      return defaultCategories
+    }
+  })
+  const [editingExpenseId, setEditingExpenseId] = useState(null)
+  const [editingExpenseForm, setEditingExpenseForm] = useState({ name: '', category: '', amount: '' })
   const [editingSuggestionId, setEditingSuggestionId] = useState(null)
   const [editingGoalId, setEditingGoalId] = useState(null)
   const [toast, setToast] = useState('')
@@ -171,6 +183,19 @@ function App() {
   useEffect(() => {
     localStorage.setItem('finup-suggestions', JSON.stringify(suggestions))
   }, [suggestions])
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('finup-categories', JSON.stringify(categories))
+    } catch {}
+  }, [categories])
+
+  useEffect(() => {
+    setSuggestionForm((current) => {
+      if (categories.includes(current.category)) return current
+      return { ...current, category: categories[0] }
+    })
+  }, [categories])
 
   function showToast(message) {
     setToast(message)
@@ -306,6 +331,59 @@ function App() {
       return
     }
     showToast('Gasto removido com sucesso.')
+  }
+
+  function startEditExpense(expense) {
+    setEditingExpenseId(expense.id)
+    setEditingExpenseForm({ name: expense.name, category: expense.category, amount: expense.amount })
+  }
+
+  function cancelEditExpense() {
+    setEditingExpenseId(null)
+    setEditingExpenseForm({ name: '', category: '', amount: '' })
+  }
+
+  async function updateExpense(expenseId) {
+    const expense = expenses.find((e) => e.id === expenseId)
+    if (!expense) return
+    const payload = {
+      data: expense.date,
+      descricao: editingExpenseForm.name,
+      categoria: editingExpenseForm.category,
+      tipo: 'despesa',
+      valor: Number(editingExpenseForm.amount) || 0,
+      origem_arquivo: '',
+      hash_unico: '',
+    }
+    try {
+      const response = await fetch(`${API_BASE_URL}/transactions/${expenseId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      })
+      if (!response.ok) throw new Error()
+      const updated = await response.json()
+      setExpenses((current) => current.map((e) => (e.id === expenseId ? {
+        id: updated.id,
+        name: updated.descricao,
+        category: updated.categoria,
+        amount: updated.valor,
+        date: updated.data,
+      } : e)))
+      cancelEditExpense()
+      bumpDashboard()
+      showToast('Gasto atualizado com sucesso.')
+    } catch {
+      showToast('Nao foi possivel atualizar o gasto no SQLite.')
+    }
+  }
+
+  function addCategory(newCategory) {
+    const name = (newCategory || '').trim()
+    if (!name) return
+    if (categories.includes(name)) return
+    setCategories((c) => [...c, name])
+    showToast(`Categoria ${name} adicionada.`)
   }
 
   async function addSuggestedExpense(suggestion) {
@@ -613,40 +691,7 @@ function App() {
                 </p>
               </div>
 
-              <div className="panel wide secondary-section">
-                <div className="panel-heading">
-                  <div>
-                    <span className="eyebrow">APIs publicas</span>
-                    <h3>Indicadores economicos</h3>
-                  </div>
-                  <span className={`status ${indicatorStatus === 'error' ? 'warning' : ''}`}>
-                    {indicatorStatus === 'loading' ? 'Atualizando' : indicatorStatus === 'error' ? 'Offline' : 'Atualizado'}
-                  </span>
-                </div>
-                <div className="indicator-grid">
-                  {indicatorList.map((indicator) => (
-                    <article className="indicator-card" key={indicator.key}>
-                      <span>{indicatorLabels[indicator.key]}</span>
-                      <strong>{formatIndicator(indicator)}</strong>
-                      <small>
-                        {indicator?.data_referencia
-                          ? `${indicator.fonte} - ${indicator.data_referencia}`
-                          : 'Inicie o backend para consultar o Banco Central.'}
-                      </small>
-                    </article>
-                  ))}
-                </div>
-              </div>
 
-              <div className="panel wide">
-                <span className="eyebrow">Insights publicos</span>
-                <h3>Leitura economica simples</h3>
-                <div className="insight-list">
-                  <p>A cotacao do dolar esta alta? Cuidado com compras internacionais e assinaturas em moeda estrangeira.</p>
-                  <p>Com a Selic atual, investimentos de renda fixa podem estar mais atrativos para reserva de emergencia.</p>
-                  <p>A inflacao medida pelo IPCA impacta seu poder de compra e pode exigir revisar metas e limites mensais.</p>
-                </div>
-              </div>
             </section>
           </>
         )}
@@ -656,7 +701,7 @@ function App() {
             <div className="panel wide">
               <div className="panel-heading">
                 <div>
-                  <span className="eyebrow">Carteira</span>
+                  <span className="eyebrow">Meu Histórico</span>
                   <h3>Todos os gastos</h3>
                 </div>
                 <strong>{money.format(totalExpenses)}</strong>
@@ -705,8 +750,20 @@ function App() {
                 {expenses.map((expense) => (
                   <article className="project-row" key={expense.id}>
                     <div>
-                      <strong>{expense.name}</strong>
-                      <span>{expense.category} - {expense.date}</span>
+                      {editingExpenseId === expense.id ? (
+                        <div className="expense-editor">
+                          <input value={editingExpenseForm.name} onChange={(e) => setEditingExpenseForm({ ...editingExpenseForm, name: e.target.value })} />
+                          <select value={editingExpenseForm.category} onChange={(e) => setEditingExpenseForm({ ...editingExpenseForm, category: e.target.value })}>
+                            {categories.map((c) => <option key={c}>{c}</option>)}
+                          </select>
+                          <input type="number" min="0" value={editingExpenseForm.amount} onChange={(e) => setEditingExpenseForm({ ...editingExpenseForm, amount: e.target.value })} />
+                        </div>
+                      ) : (
+                        <>
+                          <strong>{expense.name}</strong>
+                          <span>{expense.category} - {expense.date}</span>
+                        </>
+                      )}
                     </div>
                     <div className="progress-track" aria-label="peso no salario">
                       <span style={{ width: `${Math.min((expense.amount / Math.max(salary, 1)) * 100, 100)}%` }} />
@@ -715,7 +772,17 @@ function App() {
                     <span className={`status ${expense.amount > salary * 0.1 ? 'warning' : ''}`}>
                       {expense.amount > salary * 0.1 ? 'Revisar' : 'Ok'}
                     </span>
-                    <button className="danger-button" type="button" onClick={() => deleteExpense(expense.id)}>Excluir</button>
+                    {editingExpenseId === expense.id ? (
+                      <>
+                        <button type="button" onClick={() => updateExpense(expense.id)}>Salvar</button>
+                        <button className="ghost" type="button" onClick={cancelEditExpense}>Cancelar</button>
+                      </>
+                    ) : (
+                      <>
+                        <button type="button" onClick={() => startEditExpense(expense)}>Editar</button>
+                        <button className="danger-button" type="button" onClick={() => deleteExpense(expense.id)}>Excluir</button>
+                      </>
+                    )}
                   </article>
                 ))}
               </div>
@@ -726,7 +793,7 @@ function App() {
         {activeScreen === 'habits' && (
           <section className="content-grid">
             <div className="panel wide">
-              <span className="eyebrow">Sugestoes rapidas</span>
+              <span className="eyebrow">Gastos Fixos</span>
               <h3>Gastos comuns do dia a dia</h3>
               <form className="form-grid suggestion-create" onSubmit={addSuggestion}>
                 <label className="field">
@@ -739,11 +806,9 @@ function App() {
                 </label>
                 <label className="field">
                   <span>Categoria</span>
-                  <input
-                    value={suggestionForm.category}
-                    onChange={(event) => setSuggestionForm({ ...suggestionForm, category: event.target.value })}
-                    placeholder="Ex: Casa"
-                  />
+                  <select value={suggestionForm.category} onChange={(event) => setSuggestionForm({ ...suggestionForm, category: event.target.value })}>
+                    {categories.map((c) => <option key={c}>{c}</option>)}
+                  </select>
                 </label>
                 <label className="field">
                   <span>Valor padrao</span>
@@ -757,6 +822,18 @@ function App() {
                 </label>
                 <button type="submit">Criar gasto comum</button>
               </form>
+              <div className="add-category">
+                <label className="field">
+                  <span>Adicionar categoria</span>
+                  <input placeholder="Nova categoria" id="new-category-input" />
+                </label>
+                <button type="button" onClick={() => {
+                  const el = document.getElementById('new-category-input')
+                  if (!el) return
+                  addCategory(el.value)
+                  el.value = ''
+                }}>Adicionar</button>
+              </div>
               {suggestions.length === 0 && (
                 <div className="empty-state">
                   <strong>Nenhum gasto comum cadastrado.</strong>
@@ -777,11 +854,13 @@ function App() {
                     </button>
                     {editingSuggestionId === suggestion.id && (
                       <div className="suggestion-editor">
-                        <input value={suggestion.name} onChange={(event) => updateSuggestion(suggestion.id, 'name', event.target.value)} />
-                        <input value={suggestion.category} onChange={(event) => updateSuggestion(suggestion.id, 'category', event.target.value)} />
-                        <input type="number" min="0" value={suggestion.amount} onChange={(event) => updateSuggestion(suggestion.id, 'amount', event.target.value)} />
-                        <button type="button" onClick={() => saveSuggestion(suggestion)}>Salvar</button>
-                      </div>
+                          <input value={suggestion.name} onChange={(event) => updateSuggestion(suggestion.id, 'name', event.target.value)} />
+                          <select value={suggestion.category} onChange={(event) => updateSuggestion(suggestion.id, 'category', event.target.value)}>
+                            {categories.map((c) => <option key={c}>{c}</option>)}
+                          </select>
+                          <input type="number" min="0" value={suggestion.amount} onChange={(event) => updateSuggestion(suggestion.id, 'amount', event.target.value)} />
+                          <button type="button" onClick={() => saveSuggestion(suggestion)}>Salvar</button>
+                        </div>
                     )}
                   </article>
                 ))}
@@ -793,16 +872,37 @@ function App() {
         {activeScreen === 'indicators' && (
           <section className="content-grid">
             <div className="panel wide">
-              <span className="eyebrow">Banco Central</span>
-              <h3>Indicadores economicos</h3>
+              <div className="panel-heading">
+                <div>
+                  <span className="eyebrow">Banco Central</span>
+                  <h3>Indicadores economicos</h3>
+                </div>
+                <span className={`status ${indicatorStatus === 'error' ? 'warning' : ''}`}>
+                  {indicatorStatus === 'loading' ? 'Atualizando' : indicatorStatus === 'error' ? 'Offline' : 'Atualizado'}
+                </span>
+              </div>
               <div className="indicator-grid">
                 {indicatorList.map((indicator) => (
                   <article className="indicator-card" key={indicator.key}>
                     <span>{indicatorLabels[indicator.key]}</span>
                     <strong>{formatIndicator(indicator)}</strong>
-                    <small>{indicator?.fonte || 'Sem dado salvo ainda'}</small>
+                    <small>
+                      {indicator?.data_referencia
+                        ? `${indicator.fonte} - ${indicator.data_referencia}`
+                        : 'Inicie o backend para consultar o Banco Central.'}
+                    </small>
                   </article>
                 ))}
+              </div>
+            </div>
+
+            <div className="panel wide">
+              <span className="eyebrow">Leitura economica</span>
+              <h3>Insights publicos</h3>
+              <div className="insight-list">
+                <p>A cotacao do dolar esta alta? Cuidado com compras internacionais e assinaturas em moeda estrangeira.</p>
+                <p>Com a Selic atual, investimentos de renda fixa podem estar mais atrativos para reserva de emergencia.</p>
+                <p>A inflacao medida pelo IPCA impacta seu poder de compra e pode exigir revisar metas e limites mensais.</p>
               </div>
             </div>
           </section>

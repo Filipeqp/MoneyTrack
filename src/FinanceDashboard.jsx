@@ -82,28 +82,6 @@ export default function FinanceDashboard({ refreshKey = 0 }) {
     loadDashboard()
   }, [refreshKey])
 
-  const indicatorCards = useMemo(() => {
-    if (!data?.resumo?.indicadores) return []
-    const labels = {
-      dolar: 'Dolar atual',
-      euro: 'Euro atual',
-      selic: 'Selic',
-      ipca: 'IPCA',
-      cdi: 'CDI / juros',
-    }
-    return Object.entries(labels).map(([key, label]) => {
-      const item = data.resumo.indicadores[key]
-      return {
-        label,
-        value: item
-          ? key === 'dolar' || key === 'euro'
-            ? money.format(item.valor)
-            : `${percent.format(item.valor)}%`
-          : 'Sem dado',
-      }
-    })
-  }, [data])
-
   if (status === 'loading') {
     return <div className="panel wide">Carregando dashboard financeiro...</div>
   }
@@ -148,15 +126,7 @@ export default function FinanceDashboard({ refreshKey = 0 }) {
         ))}
       </div>
 
-      <div className="indicator-grid">
-        {indicatorCards.map((card) => (
-          <article className="indicator-card" key={card.label}>
-            <span>{card.label}</span>
-            <strong>{card.value}</strong>
-            <small>Indicador salvo no SQLite</small>
-          </article>
-        ))}
-      </div>
+      {/* Indicadores públicos removidos daqui — agora disponíveis apenas na aba Indicadores */}
 
       <div className="chart-grid">
         <div className="panel">
