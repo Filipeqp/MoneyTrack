@@ -26,6 +26,8 @@ dist-ssr
 
 # Backend 
 
-backend/__pycache__
+backend/**/__pycache__
 backend/.venv
-backend/services
+backend/htmlcov
+backend/.coverage
+backend/.pytest_cache
